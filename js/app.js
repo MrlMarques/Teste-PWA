@@ -3,13 +3,16 @@
 
   const state = {
     tasks: [],
-    filter: 'all' // 'all', 'active', 'completed'
+    filter: 'all',
+    searchQuery: ''
   };
 
   const elements = {
     form: document.getElementById('task-form'),
     input: document.getElementById('task-input'),
+    dateInput: document.getElementById('task-date'),
     priority: document.getElementById('task-priority'),
+    searchInput: document.getElementById('search-input'),
     list: document.getElementById('task-list'),
     emptyState: document.getElementById('empty-state'),
     filterButtons: document.querySelectorAll('.filter-btn'),
@@ -40,10 +43,11 @@
     }
   }
 
-  async function addTask(title, priorityVal) {
+  async function addTask(title, dueDate, priorityVal) {
     const task = {
       id: Date.now().toString(),
       title: title.trim(),
+      dueDate: dueDate || '',
       priority: priorityVal || 'medium',
       completed: false,
       createdAt: new Date().toISOString()
@@ -53,10 +57,10 @@
       state.tasks.unshift(task);
       renderTasks();
       updateStats();
-      showToast('Tarefa adicionada com sucesso!');
+      showToast('>> Registo inserido com sucesso.');
     } catch (error) {
       console.error('[App] Erro ao adicionar:', error);
-      showToast('Erro ao adicionar tarefa', 'error');
+      showToast('Erro ao inserir registo', 'error');
     }
   }
 
@@ -68,7 +72,7 @@
       await taskDB.update(task);
       renderTasks();
       updateStats();
-      showToast(task.completed ? 'Tarefa concluída!' : 'Tarefa reativada!');
+      showToast(task.completed ? '>> Tarefa concluída.' : '>> Tarefa reativada.');
     } catch (error) {
       console.error('[App] Erro ao atualizar:', error);
     }
@@ -80,17 +84,16 @@
       state.tasks = state.tasks.filter(t => t.id !== id);
       renderTasks();
       updateStats();
-      showToast('Tarefa removida!');
+      showToast('>> Registo eliminado.');
     } catch (error) {
       console.error('[App] Erro ao deletar:', error);
     }
   }
 
-  // ======= FUNÇÃO DE EXPORTAÇÃO EM PDF OTIMIZADA PARA MÓVEL =======
+  // Relatório PDF com Estilo Executivo (Preto e Dourado)
   async function exportTasksData() {
     try {
       const allTasks = await taskDB.getAll();
-      
       const activeTasks = allTasks.filter(t => !t.completed);
       const completedTasks = allTasks.filter(t => t.completed);
       const currentDate = new Date().toLocaleDateString('pt-BR');
@@ -103,34 +106,34 @@
       }
 
       printContainer.innerHTML = `
-        <div id="pdf-report-content" style="font-family: Arial, sans-serif; padding: 20px; color: #111; background: #fff;">
-          <h1 style="color: #6366f1; text-align: center; margin-bottom: 5px;">TaskFlow - Relatório de Tarefas</h1>
-          <div style="text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 20px;">Gerado em: ${currentDate}</div>
+        <div style="font-family: 'Courier New', Courier, monospace; padding: 30px; color: #000; background: #fff;">
+          <h1 style="text-align: center; margin-bottom: 5px; font-size: 1.5rem; letter-spacing: 2px;">TASKFLOW // RELATÓRIO EXECUTIVO</h1>
+          <div style="text-align: center; color: #555; font-size: 0.8rem; margin-bottom: 25px;">DATA DE EMISSÃO: ${currentDate}</div>
 
-          <div style="display: flex; justify-content: space-around; background: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
-            <div>Total: <br><strong style="color: #6366f1;">${allTasks.length}</strong></div>
-            <div>Pendentes: <br><strong style="color: #6366f1;">${activeTasks.length}</strong></div>
-            <div>Concluídas: <br><strong style="color: #6366f1;">${completedTasks.length}</strong></div>
+          <div style="display: flex; justify-content: space-around; background: #f4f4f4; padding: 12px; border: 1px solid #000; margin-bottom: 20px; text-align: center; font-size: 0.85rem;">
+            <div>TOTAL: <br><strong>${allTasks.length}</strong></div>
+            <div>PENDENTES: <br><strong>${activeTasks.length}</strong></div>
+            <div>CONCLUÍDAS: <br><strong>${completedTasks.length}</strong></div>
           </div>
 
-          <h2 style="border-bottom: 2px solid #6366f1; padding-bottom: 5px; margin-top: 20px; color: #1e293b; font-size: 1.1rem;">Tarefas Pendentes</h2>
-          <ul style="list-style: none; padding: 0;">
+          <h2 style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-top: 20px; font-size: 1rem;">[ TAREFAS PENDENTES ]</h2>
+          <ul style="list-style: none; padding: 0; font-size: 0.85rem;">
             ${activeTasks.length > 0 ? activeTasks.map(t => `
-              <li style="padding: 8px; margin-bottom: 6px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; display: flex; justify-content: space-between;">
-                <span>📌 ${escapeHtml(t.title)}</span>
-                <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: bold;">${t.priority}</span>
+              <li style="padding: 6px 0; border-bottom: 1px dashed #ccc; display: flex; justify-content: space-between;">
+                <span>[ ] ${escapeHtml(t.title)}${t.dueDate ? '(' + t.dueDate + ')' : ''}</span>
+                <strong>${t.priority.toUpperCase()}</strong>
               </li>
-            `).join('') : '<p style="color: #666; font-style: italic;">Nenhuma tarefa pendente.</p>'}
+            `).join('') : '<p style="font-style: italic; color: #666;">Nenhum registo pendente.</p>'}
           </ul>
 
-          <h2 style="border-bottom: 2px solid #6366f1; padding-bottom: 5px; margin-top: 20px; color: #1e293b; font-size: 1.1rem;">Tarefas Concluídas</h2>
-          <ul style="list-style: none; padding: 0;">
+          <h2 style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-top: 20px; font-size: 1rem;">[ TAREFAS CONCLUÍDAS ]</h2>
+          <ul style="list-style: none; padding: 0; font-size: 0.85rem;">
             ${completedTasks.length > 0 ? completedTasks.map(t => `
-              <li style="padding: 8px; margin-bottom: 6px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; display: flex; justify-content: space-between;">
-                <span style="text-decoration: line-through; color: #666;">✅ ${escapeHtml(t.title)}</span>
-                <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: bold;">${t.priority}</span>
+              <li style="padding: 6px 0; border-bottom: 1px dashed #ccc; display: flex; justify-content: space-between; text-decoration: line-through; color: #555;">
+                <span>[X] ${escapeHtml(t.title)}</span>
+                <strong>${t.priority.toUpperCase()}</strong>
               </li>
-            `).join('') : '<p style="color: #666; font-style: italic;">Nenhuma tarefa concluída.</p>'}
+            `).join('') : '<p style="font-style: italic; color: #666;">Nenhum registo concluído.</p>'}
           </ul>
         </div>
       `;
@@ -149,25 +152,31 @@
         document.head.appendChild(styleTag);
       }
 
-      showToast('A preparar o relatório...');
-      
+      showToast('>> A compilar relatório PDF...');
       setTimeout(() => {
         window.print();
-        showToast('Relatório pronto para PDF!');
       }, 300);
 
     } catch (error) {
       console.error('[App] Erro ao gerar PDF:', error);
-      showToast('Erro ao gerar relatório', 'error');
+      showToast('Erro ao exportar PDF', 'error');
     }
   }
 
   function getFilteredTasks() {
-    switch (state.filter) {
-      case 'active': return state.tasks.filter(t => !t.completed);
-      case 'completed': return state.tasks.filter(t => t.completed);
-      default: return state.tasks;
+    let tasks = state.tasks;
+
+    // Filtro de estado
+    if (state.filter === 'active') tasks = tasks.filter(t => !t.completed);
+    if (state.filter === 'completed') tasks = tasks.filter(t => t.completed);
+
+    // Filtro de pesquisa por texto
+    if (state.searchQuery.trim() !== '') {
+      const q = state.searchQuery.toLowerCase();
+      tasks = tasks.filter(t => t.title.toLowerCase().includes(q));
     }
+
+    return tasks;
   }
 
   function renderTasks() {
@@ -182,17 +191,19 @@
     elements.emptyState.classList.add('hidden');
 
     elements.list.innerHTML = filtered.map(task => `
-      <div class="task-item ${task.completed ? 'completed' : ''}" data-id="${task.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 14px; background: #1e293b; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid ${task.completed ? '#22c55e' : '#6366f1'}">
-        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-          <input type="checkbox" ${task.completed ? 'checked' : ''} class="task-checkbox" data-action="toggle" data-id="${task.id}" style="width: 18px; height: 18px; cursor: pointer;">
-          <div>
-            <div style="font-size: 0.95rem; font-weight: 500; text-decoration: ${task.completed ? 'line-through' : 'none'}; color: ${task.completed ? '#94a3b8' : '#f1f5f9'}">
+      <div class="task-item ${task.completed ? 'completed' : ''}" data-id="${task.id}">
+        <div style="display: flex; align-items: center; gap: 10px; flex: 1; overflow: hidden;">
+          <input type="checkbox" ${task.completed ? 'checked' : ''} class="task-checkbox" data-action="toggle" data-id="${task.id}" style="width: 16px; height: 16px; cursor: pointer;">
+          <div style="overflow: hidden;">
+            <div style="font-size: 0.85rem; word-break: break-all; text-decoration: ${task.completed ? 'line-through' : 'none'}; color: ${task.completed ? '#888' : '#fff'}">
               ${escapeHtml(task.title)}
             </div>
-            <span style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Prioridade: ${task.priority}</span>
+            <div style="font-size: 0.65rem; color: #d4af37; margin-top: 2px;">
+              PRIORIDADE: ${task.priority.toUpperCase()} ${task.dueDate ? ' | PRAZO: ' + task.dueDate : ''}
+            </div>
           </div>
         </div>
-        <button class="btn-delete" data-action="delete" data-id="${task.id}" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-weight: bold; padding: 6px;">Excluir</button>
+        <button class="btn-delete" data-action="delete" data-id="${task.id}" style="background: transparent; border: none; color: #e74c3c; cursor: pointer; font-weight: bold; font-family: 'Courier New'; font-size: 0.75rem; padding: 6px;">[X]</button>
       </div>
     `).join('');
   }
@@ -222,16 +233,22 @@
     }, 3000);
   }
 
-  // Event Listeners
   function setupEventListeners() {
     elements.form.addEventListener('submit', (e) => {
       e.preventDefault();
       const val = elements.input.value;
+      const dateVal = elements.dateInput.value;
       if (val.trim()) {
-        addTask(val, elements.priority.value);
+        addTask(val, dateVal, elements.priority.value);
         elements.input.value = '';
+        elements.dateInput.value = '';
         elements.input.focus();
       }
+    });
+
+    elements.searchInput.addEventListener('input', (e) => {
+      state.searchQuery = e.target.value;
+      renderTasks();
     });
 
     elements.list.addEventListener('click', (e) => {
@@ -259,7 +276,6 @@
     }
   }
 
-  // Inicialização
   registerSW();
   loadTasks();
   setupEventListeners();

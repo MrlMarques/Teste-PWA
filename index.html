@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#6366f1">
+<meta name="description" content="Gerenciador de Tareas PWA - Organize suas
+tarefas offline">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-
+translucent">
+<meta name="apple-mobile-web-app-title" content="TaskFlow">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>TaskFlow — Gerenciador de Tarefas</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-container">
+<!-- Header -->
+<header class="app-header">
+<h1>! TaskFlow</h1>
+<p class="subtitle">Gerenciador de Tarefas Offline</p>
+</header>
+<!-- Install Banner -->
+<div id="install-banner" class="install-banner hidden">
+<p>" Instale o TaskFlow no seu dispositivo!</p>
+<div class="install-buttons">
+<button id="btn-install" class="btn btn-primary">Instalar</button>
+<button id="btn-dismiss" class="btn btn-secondary">Ignorar</button>
+</div>
+</div>
+<!-- Status Bar -->
+<div id="status-bar" class="status-bar">
+<span id="connection-status">✅ Online</span>
+<span id="task-count"></span>
+</div>
+<!-- Add Task Form -->
+<form id="task-form" class="task-form">
+<div class="input-group">
+<input
+type="text"
+id="task-input"
+placeholder="Adicione uma nova tarefa..."
+autocomplete="off"
+required
+>
+<select id="task-priority">
+<option value="low">Baixa</option>
+<option value="medium" selected>Média</option>
+<option value="high">Alta</option>
+</select>
+<button type="submit" class="btn btn-primary">
+<span id="btn-text">Adicionar</span>
+</button>
+</div>
+</form>
+<!-- Filters -->
+<div class="filters">
+<button class="filter-btn active" data-filter="all">Todas</button>
+<button class="filter-btn" data-filter="active">Pendentes</button>
+<button class="filter-btn" data-filter="completed">Concluídas</button>
+</div>
+<!-- Task List -->
+<div id="task-list" class="task-list">
+<!-- Tasks will be dynamically inserted here -->
+</div>
+<!-- Empty State -->
+<div id="empty-state" class="empty-state hidden">
+<div class="empty-icon">! </div>
+<p>Nenhuma tarefa encontrada</p>
+<span class="empty-hint">Adicione uma tarefa acima para começar!</span>
+</div>
+<!-- Stats -->
+<div class="stats">
+<div class="stat-item">
+<span class="stat-value" id="stat-total">0</span>
+<span class="stat-label">Total</span>
+</div>
+<div class="stat-item">
+<span class="stat-value" id="stat-active">0</span>
+<span class="stat-label">Pendentes</span>
+</div>
+<div class="stat-item">
+<span class="stat-value" id="stat-completed">0</span>
+<span class="stat-label">Concluídas</span>
+</div>
+</div>
+<!-- Footer -->
+<footer class="app-footer">
+<p>TaskFlow PWA © 2026 — Funciona offline!</p>
+</footer>
+</div>
+<!-- Toast Notification -->
+<div id="toast" class="toast"></div>
+<script src="js/db.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

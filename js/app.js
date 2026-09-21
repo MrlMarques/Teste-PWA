@@ -58,6 +58,37 @@
       showToast('Erro ao adicionar tarefa', 'error');
     }
   }
+// Coloque esta função junto às outras funções (ex: logo após a função deleteTask)
+async function exportTasksData() {
+  try {
+    const allTasks = await taskDB.getAll();
+    
+    const activeTasks = allTasks.filter(t => !t.completed);
+    const completedTasks = allTasks.filter(t => t.completed);
+
+    const exportData = {
+      version: "1.0",
+      exportDate: new Date().toISOString(),
+      totalTarefas: allTasks.length,
+      pendentes: activeTasks,
+      concluidas: completedTasks
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `taskflow-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    showToast('Tarefas exportadas com sucesso!');
+  } catch (error) {
+    console.error('[App] Erro ao exportar:', error);
+    showToast('Erro ao exportar dados', 'error');
+  }
+}
 
   async function toggleTask(id) {
     try {

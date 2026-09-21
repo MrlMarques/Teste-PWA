@@ -86,35 +86,88 @@
     }
   }
 
-  // ======= NOVA FUNÇÃO DE EXPORTAÇÃO =======
+  // ======= FUNÇÃO DE EXPORTAÇÃO EM PDF (VIA IMPRESSÃO DO NAVEGADOR) =======
   async function exportTasksData() {
     try {
       const allTasks = await taskDB.getAll();
       
       const activeTasks = allTasks.filter(t => !t.completed);
       const completedTasks = allTasks.filter(t => t.completed);
+      const currentDate = new Date().toLocaleDateString('pt-BR');
 
-      const exportData = {
-        version: "1.0",
-        exportDate: new Date().toISOString(),
-        totalTarefas: allTasks.length,
-        pendentes: activeTasks,
-        concluidas: completedTasks
-      };
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        showToast('Permita pop-ups para gerar o PDF', 'error');
+        return;
+      }
 
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `taskflow-backup-${new Date().toISOString().slice(0, 10)}.json`);
-      
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8">
+          <title>Relatório - TaskFlow</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; color: #111; max-width: 800px; margin: 0 auto; }
+            h1 { color: #6366f1; text-align: center; margin-bottom: 5px; }
+            .date { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 30px; }
+            h2 { border-bottom: 2px solid #6366f1; padding-bottom: 5px; margin-top: 25px; color: #1e293b; font-size: 1.2rem; }
+            ul { list-style: none; padding: 0; }
+            li { padding: 10px; margin-bottom: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+            .priority { font-size: 0.75rem; text-transform: uppercase; font-weight: bold; padding: 3px 6px; border-radius: 4px; background: #e2e8f0; }
+            .stats-box { display: flex; justify-content: space-around; background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+            .stat-num { font-size: 1.2rem; font-weight: bold; color: #6366f1; }
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>TaskFlow - Relatório de Tarefas</h1>
+          <div class="date">Gerado em: ${currentDate}</div>
 
-      showToast('Tarefas exportadas com sucesso!');
+          <div class="stats-box">
+            <div>Total: <br><span class="stat-num">${allTasks.length}</span></div>
+            <div>Pendentes: <br><span class="stat-num">${activeTasks.length}</span></div>
+            <div>Concluídas: <br><span class="stat-num">${completedTasks.length}</span></div>
+          </div>
+
+          <h2>Tarefas Pendentes</h2>
+          <ul>
+            ${activeTasks.length > 0 ? activeTasks.map(t => `
+              <li>
+                <span>📌 ${escapeHtml(t.title)}</span>
+                <span class="priority">${t.priority}</span>
+              </li>
+            `).join('') : '<p style="color: #666; font-style: italic;">Nenhuma tarefa pendente.</p>'}
+          </ul>
+
+          <h2>Tarefas Concluídas</h2>
+          <ul>
+            ${completedTasks.length > 0 ? completedTasks.map(t => `
+              <li>
+                <span style="text-decoration: line-through; color: #666;">✅ ${escapeHtml(t.title)}</span>
+                <span class="priority">${t.priority}</span>
+              </li>
+            `).join('') : '<p style="color: #666; font-style: italic;">Nenhuma tarefa concluída.</p>'}
+          </ul>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+
+      showToast('Relatório PDF gerado com sucesso!');
     } catch (error) {
-      console.error('[App] Erro ao exportar:', error);
-      showToast('Erro ao exportar dados', 'error');
+      console.error('[App] Erro ao gerar PDF:', error);
+      showToast('Erro ao gerar relatório', 'error');
     }
   }
 
@@ -210,7 +263,7 @@
       });
     });
 
-    // Event listener para o botão de exportação
+    // Event listener para o botão de exportar relatório PDF
     if (elements.btnExport) {
       elements.btnExport.addEventListener('click', exportTasksData);
     }

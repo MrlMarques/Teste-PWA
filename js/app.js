@@ -1,46 +1,182 @@
 (function () {
   'use strict';
-  const state = { tasks: [], filter: 'all' };
-  const form = document.getElementById('task-form');
-  const input = document.getElementById('task-input');
-  const priority = document.getElementById('task-priority');
-  const list = document.getElementById('task-list');
+
+  const state = {
+    tasks: [],
+    filter: 'all' // 'all', 'active', 'completed'
+  };
+
+  const elements = {
+    form: document.getElementById('task-form'),
+    input: document.getElementById('task-input'),
+    priority: document.getElementById('task-priority'),
+    list: document.getElementById('task-list'),
+    emptyState: document.getElementById('empty-state'),
+    filterButtons: document.querySelectorAll('.filter-btn'),
+    statTotal: document.getElementById('stat-total'),
+    statActive: document.getElementById('stat-active'),
+    statCompleted: document.getElementById('stat-completed'),
+    toast: document.getElementById('toast')
+  };
 
   async function registerSW() {
     if ('serviceWorker' in navigator) {
-      try { await navigator.serviceWorker.register('/sw.js'); } catch (e) { console.error(e); }
+      try {
+        await navigator.serviceWorker.register('/sw.js');
+      } catch (e) {
+        console.error('[App] Erro ao registrar SW:', e);
+      }
     }
   }
 
   async function loadTasks() {
-    state.tasks = await taskDB.getAll();
-    render();
+    try {
+      state.tasks = await taskDB.getAll();
+      renderTasks();
+      updateStats();
+    } catch (error) {
+      console.error('[App] Erro ao carregar tarefas:', error);
+    }
   }
 
-  function render() {
-    list.innerHTML = state.tasks.map(t => `
-      <div class="task-item">
-        <span>${t.title} (${t.priority})</span>
-        <button onclick="window.removeTask('${t.id}')">Excluir</button>
+  async function addTask(title, priorityVal) {
+    const task = {
+      id: Date.now().toString(),
+      title: title.trim(),
+      priority: priorityVal || 'medium',
+      completed: false,
+      createdAt: new Date().toISOString()
+    };
+    try {
+      await taskDB.add(task);
+      state.tasks.unshift(task);
+      renderTasks();
+      updateStats();
+      showToast('Tarefa adicionada com sucesso!');
+    } catch (error) {
+      console.error('[App] Erro ao adicionar:', error);
+      showToast('Erro ao adicionar tarefa', 'error');
+    }
+  }
+
+  async function toggleTask(id) {
+    try {
+      const task = state.tasks.find(t => t.id == id);
+      if (!task) return;
+      task.completed = !task.completed;
+      await taskDB.update(task);
+      renderTasks();
+      updateStats();
+      showToast(task.completed ? 'Tarefa concluída!' : 'Tarefa reativada!');
+    } catch (error) {
+      console.error('[App] Erro ao atualizar:', error);
+    }
+  }
+
+  async function deleteTask(id) {
+    try {
+      await taskDB.delete(id);
+      state.tasks = state.tasks.filter(t => t.id !== id);
+      renderTasks();
+      updateStats();
+      showToast('Tarefa removida!');
+    } catch (error) {
+      console.error('[App] Erro ao deletar:', error);
+    }
+  }
+
+  function getFilteredTasks() {
+    switch (state.filter) {
+      case 'active': return state.tasks.filter(t => !t.completed);
+      case 'completed': return state.tasks.filter(t => t.completed);
+      default: return state.tasks;
+    }
+  }
+
+  function renderTasks() {
+    const filtered = getFilteredTasks();
+
+    if (filtered.length === 0) {
+      elements.list.innerHTML = '';
+      elements.emptyState.classList.remove('hidden');
+      return;
+    }
+
+    elements.emptyState.classList.add('hidden');
+
+    elements.list.innerHTML = filtered.map(task => `
+      <div class="task-item ${task.completed ? 'completed' : ''}" data-id="${task.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 14px; background: #1e293b; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid ${task.completed ? '#22c55e' : '#6366f1'}">
+        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+          <input type="checkbox" ${task.completed ? 'checked' : ''} class="task-checkbox" data-action="toggle" data-id="${task.id}" style="width: 18px; height: 18px; cursor: pointer;">
+          <div>
+            <div style="font-size: 0.95rem; font-weight: 500; text-decoration: ${task.completed ? 'line-through' : 'none'}; color: ${task.completed ? '#94a3b8' : '#f1f5f9'}">
+              ${escapeHtml(task.title)}
+            </div>
+            <span style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Prioridade: ${task.priority}</span>
+          </div>
+        </div>
+        <button class="btn-delete" data-action="delete" data-id="${task.id}" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-weight: bold; padding: 6px;">Excluir</button>
       </div>
     `).join('');
-    document.getElementById('stat-total').textContent = state.tasks.length;
   }
 
-  window.removeTask = async function(id) {
-    await taskDB.delete(id);
-    loadTasks();
+  function updateStats() {
+    const total = state.tasks.length;
+    const active = state.tasks.filter(t => !t.completed).length;
+    const completed = state.tasks.filter(t => t.completed).length;
+
+    if (elements.statTotal) elements.statTotal.textContent = total;
+    if (elements.statActive) elements.statActive.textContent = active;
+    if (elements.statCompleted) elements.statCompleted.textContent = completed;
   }
 
-  form.addEventListener('submit', async (e) => {
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function showToast(message) {
+    if (!elements.toast) return;
+    elements.toast.textContent = message;
+    elements.toast.className = 'toast show';
+    setTimeout(() => {
+      elements.toast.className = 'toast';
+    }, 3000);
+  }
+
+  // Event Listeners
+  elements.form.addEventListener('submit', (e) => {
     e.preventDefault();
-    if (!input.value.trim()) return;
-    const newTask = { id: Date.now().toString(), title: input.value, priority: priority.value };
-    await taskDB.add(newTask);
-    input.value = '';
-    loadTasks();
+    const val = elements.input.value;
+    if (val.trim()) {
+      addTask(val, elements.priority.value);
+      elements.input.value = '';
+      elements.input.focus();
+    }
   });
 
+  elements.list.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    const checkbox = e.target.closest('input[type="checkbox"]');
+
+    if (btn && btn.dataset.action === 'delete') {
+      deleteTask(btn.dataset.id);
+    } else if (checkbox && checkbox.dataset.action === 'toggle') {
+      toggleTask(checkbox.dataset.id);
+    }
+  });
+
+  elements.filterButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      elements.filterButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.filter = btn.dataset.filter;
+      renderTasks();
+    });
+  });
+
+  // Inicialização
   registerSW();
   loadTasks();
 })();

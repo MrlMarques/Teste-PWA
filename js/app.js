@@ -86,7 +86,7 @@
     }
   }
 
-  // ======= FUNÇÃO DE EXPORTAÇÃO EM PDF (VIA IMPRESSÃO DO NAVEGADOR) =======
+  // ======= FUNÇÃO DE EXPORTAÇÃO EM PDF OTIMIZADA PARA MÓVEL =======
   async function exportTasksData() {
     try {
       const allTasks = await taskDB.getAll();
@@ -95,76 +95,67 @@
       const completedTasks = allTasks.filter(t => t.completed);
       const currentDate = new Date().toLocaleDateString('pt-BR');
 
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        showToast('Permita pop-ups para gerar o PDF', 'error');
-        return;
+      let printContainer = document.getElementById('print-area');
+      if (!printContainer) {
+        printContainer = document.createElement('div');
+        printContainer.id = 'print-area';
+        document.body.appendChild(printContainer);
       }
 
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="pt-BR">
-        <head>
-          <meta charset="UTF-8">
-          <title>Relatório - TaskFlow</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; color: #111; max-width: 800px; margin: 0 auto; }
-            h1 { color: #6366f1; text-align: center; margin-bottom: 5px; }
-            .date { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 30px; }
-            h2 { border-bottom: 2px solid #6366f1; padding-bottom: 5px; margin-top: 25px; color: #1e293b; font-size: 1.2rem; }
-            ul { list-style: none; padding: 0; }
-            li { padding: 10px; margin-bottom: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
-            .priority { font-size: 0.75rem; text-transform: uppercase; font-weight: bold; padding: 3px 6px; border-radius: 4px; background: #e2e8f0; }
-            .stats-box { display: flex; justify-content: space-around; background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
-            .stat-num { font-size: 1.2rem; font-weight: bold; color: #6366f1; }
-            @media print {
-              body { padding: 0; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>TaskFlow - Relatório de Tarefas</h1>
-          <div class="date">Gerado em: ${currentDate}</div>
+      printContainer.innerHTML = `
+        <div id="pdf-report-content" style="font-family: Arial, sans-serif; padding: 20px; color: #111; background: #fff;">
+          <h1 style="color: #6366f1; text-align: center; margin-bottom: 5px;">TaskFlow - Relatório de Tarefas</h1>
+          <div style="text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 20px;">Gerado em: ${currentDate}</div>
 
-          <div class="stats-box">
-            <div>Total: <br><span class="stat-num">${allTasks.length}</span></div>
-            <div>Pendentes: <br><span class="stat-num">${activeTasks.length}</span></div>
-            <div>Concluídas: <br><span class="stat-num">${completedTasks.length}</span></div>
+          <div style="display: flex; justify-content: space-around; background: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+            <div>Total: <br><strong style="color: #6366f1;">${allTasks.length}</strong></div>
+            <div>Pendentes: <br><strong style="color: #6366f1;">${activeTasks.length}</strong></div>
+            <div>Concluídas: <br><strong style="color: #6366f1;">${completedTasks.length}</strong></div>
           </div>
 
-          <h2>Tarefas Pendentes</h2>
-          <ul>
+          <h2 style="border-bottom: 2px solid #6366f1; padding-bottom: 5px; margin-top: 20px; color: #1e293b; font-size: 1.1rem;">Tarefas Pendentes</h2>
+          <ul style="list-style: none; padding: 0;">
             ${activeTasks.length > 0 ? activeTasks.map(t => `
-              <li>
+              <li style="padding: 8px; margin-bottom: 6px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; display: flex; justify-content: space-between;">
                 <span>📌 ${escapeHtml(t.title)}</span>
-                <span class="priority">${t.priority}</span>
+                <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: bold;">${t.priority}</span>
               </li>
             `).join('') : '<p style="color: #666; font-style: italic;">Nenhuma tarefa pendente.</p>'}
           </ul>
 
-          <h2>Tarefas Concluídas</h2>
-          <ul>
+          <h2 style="border-bottom: 2px solid #6366f1; padding-bottom: 5px; margin-top: 20px; color: #1e293b; font-size: 1.1rem;">Tarefas Concluídas</h2>
+          <ul style="list-style: none; padding: 0;">
             ${completedTasks.length > 0 ? completedTasks.map(t => `
-              <li>
+              <li style="padding: 8px; margin-bottom: 6px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; display: flex; justify-content: space-between;">
                 <span style="text-decoration: line-through; color: #666;">✅ ${escapeHtml(t.title)}</span>
-                <span class="priority">${t.priority}</span>
+                <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: bold;">${t.priority}</span>
               </li>
             `).join('') : '<p style="color: #666; font-style: italic;">Nenhuma tarefa concluída.</p>'}
           </ul>
-
-          <script>
-            window.onload = function() {
-              window.print();
-            };
-          </script>
-        </body>
-        </html>
+        </div>
       `;
 
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+      let styleTag = document.getElementById('print-temp-style');
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = 'print-temp-style';
+        styleTag.innerHTML = `
+          @media print {
+            body * { visibility: hidden !important; }
+            #print-area, #print-area * { visibility: visible !important; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block !important; background: white; }
+          }
+        `;
+        document.head.appendChild(styleTag);
+      }
 
-      showToast('Relatório PDF gerado com sucesso!');
+      showToast('A preparar o relatório...');
+      
+      setTimeout(() => {
+        window.print();
+        showToast('Relatório pronto para PDF!');
+      }, 300);
+
     } catch (error) {
       console.error('[App] Erro ao gerar PDF:', error);
       showToast('Erro ao gerar relatório', 'error');
@@ -263,7 +254,6 @@
       });
     });
 
-    // Event listener para o botão de exportar relatório PDF
     if (elements.btnExport) {
       elements.btnExport.addEventListener('click', exportTasksData);
     }

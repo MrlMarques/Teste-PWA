@@ -16,7 +16,8 @@
     statTotal: document.getElementById('stat-total'),
     statActive: document.getElementById('stat-active'),
     statCompleted: document.getElementById('stat-completed'),
-    toast: document.getElementById('toast')
+    toast: document.getElementById('toast'),
+    btnExport: document.getElementById('btn-export')
   };
 
   async function registerSW() {
@@ -24,7 +25,7 @@
       try {
         await navigator.serviceWorker.register('/sw.js');
       } catch (e) {
-        console.error('[App] Erro ao registrar SW:', e);
+        console.error('[App] Erro ao registar SW:', e);
       }
     }
   }
@@ -58,37 +59,6 @@
       showToast('Erro ao adicionar tarefa', 'error');
     }
   }
-// Coloque esta função junto às outras funções (ex: logo após a função deleteTask)
-async function exportTasksData() {
-  try {
-    const allTasks = await taskDB.getAll();
-    
-    const activeTasks = allTasks.filter(t => !t.completed);
-    const completedTasks = allTasks.filter(t => t.completed);
-
-    const exportData = {
-      version: "1.0",
-      exportDate: new Date().toISOString(),
-      totalTarefas: allTasks.length,
-      pendentes: activeTasks,
-      concluidas: completedTasks
-    };
-
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `taskflow-backup-${new Date().toISOString().slice(0, 10)}.json`);
-    
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-
-    showToast('Tarefas exportadas com sucesso!');
-  } catch (error) {
-    console.error('[App] Erro ao exportar:', error);
-    showToast('Erro ao exportar dados', 'error');
-  }
-}
 
   async function toggleTask(id) {
     try {
@@ -113,6 +83,38 @@ async function exportTasksData() {
       showToast('Tarefa removida!');
     } catch (error) {
       console.error('[App] Erro ao deletar:', error);
+    }
+  }
+
+  // ======= NOVA FUNÇÃO DE EXPORTAÇÃO =======
+  async function exportTasksData() {
+    try {
+      const allTasks = await taskDB.getAll();
+      
+      const activeTasks = allTasks.filter(t => !t.completed);
+      const completedTasks = allTasks.filter(t => t.completed);
+
+      const exportData = {
+        version: "1.0",
+        exportDate: new Date().toISOString(),
+        totalTarefas: allTasks.length,
+        pendentes: activeTasks,
+        concluidas: completedTasks
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `taskflow-backup-${new Date().toISOString().slice(0, 10)}.json`);
+      
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      showToast('Tarefas exportadas com sucesso!');
+    } catch (error) {
+      console.error('[App] Erro ao exportar:', error);
+      showToast('Erro ao exportar dados', 'error');
     }
   }
 
@@ -177,37 +179,45 @@ async function exportTasksData() {
   }
 
   // Event Listeners
-  elements.form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const val = elements.input.value;
-    if (val.trim()) {
-      addTask(val, elements.priority.value);
-      elements.input.value = '';
-      elements.input.focus();
-    }
-  });
-
-  elements.list.addEventListener('click', (e) => {
-    const btn = e.target.closest('button');
-    const checkbox = e.target.closest('input[type="checkbox"]');
-
-    if (btn && btn.dataset.action === 'delete') {
-      deleteTask(btn.dataset.id);
-    } else if (checkbox && checkbox.dataset.action === 'toggle') {
-      toggleTask(checkbox.dataset.id);
-    }
-  });
-
-  elements.filterButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      elements.filterButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.filter = btn.dataset.filter;
-      renderTasks();
+  function setupEventListeners() {
+    elements.form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = elements.input.value;
+      if (val.trim()) {
+        addTask(val, elements.priority.value);
+        elements.input.value = '';
+        elements.input.focus();
+      }
     });
-  });
+
+    elements.list.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      const checkbox = e.target.closest('input[type="checkbox"]');
+
+      if (btn && btn.dataset.action === 'delete') {
+        deleteTask(btn.dataset.id);
+      } else if (checkbox && checkbox.dataset.action === 'toggle') {
+        toggleTask(checkbox.dataset.id);
+      }
+    });
+
+    elements.filterButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        elements.filterButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.filter = btn.dataset.filter;
+        renderTasks();
+      });
+    });
+
+    // Event listener para o botão de exportação
+    if (elements.btnExport) {
+      elements.btnExport.addEventListener('click', exportTasksData);
+    }
+  }
 
   // Inicialização
   registerSW();
   loadTasks();
+  setupEventListeners();
 })();
